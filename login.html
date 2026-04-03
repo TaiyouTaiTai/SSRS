@@ -224,10 +224,15 @@
             margin-top: 8px;
         }
 
-        .btn-primary:hover {
+        .btn-primary:hover:not(:disabled) {
             background: var(--accent-hover);
             transform: translateY(-2px);
             box-shadow: 0 8px 24px rgba(74, 108, 247, 0.25);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
 
         .btn-primary:active {
@@ -321,6 +326,37 @@
             50% { opacity: 0.4; }
         }
 
+        /* --- Toggle mode button --- */
+        .toggle-mode {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            font-size: 0.8rem;
+            color: var(--accent);
+            cursor: pointer;
+            background: none;
+            border: none;
+            font-family: 'Outfit', sans-serif;
+            width: 100%;
+        }
+
+        .toggle-mode:hover {
+            text-decoration: underline;
+        }
+
+        /* --- Error message --- */
+        .error-message {
+            display: none;
+            background: rgba(255, 77, 106, 0.1);
+            border: 1px solid rgba(255, 77, 106, 0.3);
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-bottom: 20px;
+            font-size: 0.85rem;
+            color: var(--error);
+            text-align: center;
+        }
+
         /* --- Responsive --- */
         @media (max-width: 480px) {
             .title {
@@ -352,32 +388,38 @@
                 <span>Sistema activo</span>
             </div>
 
-            <!-- Login Form (visual, no funcional aún) -->
-            <form id="loginForm" onsubmit="return false;">
+            <h2 class="form-title" id="formTitle">Iniciar sesión</h2>
+
+            <div class="error-message" id="errorMessage"></div>
+
+            <!-- Login Form -->
+            <form id="loginForm">
                 <div class="form-group">
                     <label class="form-label" for="email">Correo electrónico</label>
-                    <input 
-                        type="email" 
-                        id="email" 
-                        class="form-input" 
+                    <input
+                        type="email"
+                        id="email"
+                        class="form-input"
                         placeholder="usuario@universidad.edu"
                     >
                 </div>
 
                 <div class="form-group">
                     <label class="form-label" for="password">Contraseña</label>
-                    <input 
-                        type="password" 
-                        id="password" 
-                        class="form-input" 
+                    <input
+                        type="password"
+                        id="password"
+                        class="form-input"
                         placeholder="••••••••"
                     >
                 </div>
 
-                <button type="submit" class="btn btn-primary" onclick="handleLogin()">
+                <button type="submit" id="btnSubmit" class="btn btn-primary">
                     Iniciar Sesión
                 </button>
             </form>
+
+            <button class="toggle-mode" id="btnToggleMode">¿No tienes cuenta? Regístrate</button>
 
             <!-- Divider -->
             <div class="divider">
@@ -387,7 +429,7 @@
             </div>
 
             <!-- Aux Button -->
-            <button class="btn btn-aux" onclick="goToPanel()">
+            <button id="btnAux" class="btn btn-aux">
                 Acceder al panel sin cuenta <span class="arrow">→</span>
             </button>
 
@@ -400,17 +442,7 @@
 
     </div>
 
-    <script>
-        function handleLogin() {
-            // Placeholder: Aquí se conectará Firebase Authentication
-            alert('⚠️ Sistema de autenticación aún no conectado.\nUsa el botón "Acceder al panel sin cuenta" para continuar.');
-        }
-
-        function goToPanel() {
-            // Redirige a la página principal del validador
-            window.location.href = 'panel.html';
-        }
-    </script>
+    <script type="module" src="/src/login.js"></script>
 
 </body>
 </html>

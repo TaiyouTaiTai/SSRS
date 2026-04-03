@@ -251,6 +251,19 @@
             background: var(--warning);
         }
 
+        .card-status.active {
+            background: rgba(0, 212, 138, 0.1);
+            color: var(--success);
+        }
+
+        .card-status.active::before {
+            content: '';
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--success);
+        }
+
         /* --- Footer --- */
         .panel-footer {
             position: relative;
@@ -288,9 +301,9 @@
     <nav class="navbar">
         <div class="navbar-brand">Validador SSRS</div>
         <div class="navbar-user">
-            <div class="user-avatar">U</div>
-            <span>Usuario invitado</span>
-            <button class="btn-logout" onclick="logout()">Salir</button>
+            <div class="user-avatar" id="userAvatar">U</div>
+            <span id="userName">Usuario invitado</span>
+            <button class="btn-logout" id="btnLogout">Salir</button>
         </div>
     </nav>
 
@@ -305,17 +318,17 @@
         <div class="actions-grid">
 
             <!-- Card: Firmar documento -->
-            <div class="action-card" onclick="navigateTo('firmar')">
+            <div class="action-card" data-module="firmar">
                 <div class="card-icon sign">✍️</div>
                 <h3 class="card-title">Firmar Documento</h3>
                 <p class="card-description">
                     Sube un documento, dibuja tu firma digital y genera un certificado con hash SHA-256.
                 </p>
-                <span class="card-status pending">Próximamente</span>
+                <span class="card-status active">Disponible</span>
             </div>
 
             <!-- Card: Verificar documento -->
-            <div class="action-card" onclick="navigateTo('verificar')">
+            <div class="action-card" data-module="verificar">
                 <div class="card-icon verify">🔍</div>
                 <h3 class="card-title">Verificar Documento</h3>
                 <p class="card-description">
@@ -325,7 +338,7 @@
             </div>
 
             <!-- Card: Historial -->
-            <div class="action-card" onclick="navigateTo('historial')">
+            <div class="action-card" data-module="historial">
                 <div class="card-icon history">📋</div>
                 <h3 class="card-title">Historial de Firmas</h3>
                 <p class="card-description">
@@ -343,16 +356,7 @@
         <span class="mono">SSRS</span> · Derecho Informático · 2026
     </div>
 
-    <script>
-        function navigateTo(section) {
-            // Placeholder: Aquí se navegará a cada módulo
-            alert('Módulo "' + section + '" en desarrollo.\nPróximamente disponible.');
-        }
-
-        function logout() {
-            window.location.href = 'login.html';
-        }
-    </script>
+    <script type="module" src="/src/panel.js"></script>
 
 </body>
 </html>
