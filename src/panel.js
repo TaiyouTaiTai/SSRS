@@ -17,8 +17,10 @@ document.querySelectorAll('.action-card').forEach((card) => {
     const module = card.dataset.module;
     if (module === 'firmar') {
       window.location.href = '/firmar.html';
-    } else {
-      alert(`Módulo ${module} en desarrollo.`);
+    } else if (module === 'verificar') {
+      window.location.href = '/verificar.html';
+    } else if (module === 'historial') {
+      window.location.href = '/historial.html';
     }
   });
 });

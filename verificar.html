@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Validador SSRS - Firmar Documento</title>
+    <title>Validador SSRS - Verificar Documento</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
         * {
@@ -64,17 +64,11 @@
             z-index: 10;
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            gap: 20px;
             padding: 16px 40px;
             border-bottom: 1px solid var(--border);
             background: rgba(10, 10, 15, 0.9);
             backdrop-filter: blur(12px);
-        }
-
-        .navbar-left {
-            display: flex;
-            align-items: center;
-            gap: 20px;
         }
 
         .navbar-brand {
@@ -121,49 +115,11 @@
             background: rgba(192, 192, 192, 0.05);
         }
 
-        .navbar-user {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-        }
-
-        .user-avatar {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.75rem;
-            color: var(--silver-mid);
-        }
-
-        .btn-logout {
-            padding: 6px 16px;
-            background: transparent;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            color: var(--text-secondary);
-            font-family: 'Outfit', sans-serif;
-            font-size: 0.8rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .btn-logout:hover {
-            border-color: var(--error);
-            color: var(--error);
-        }
-
         /* --- Main content --- */
         .main-content {
             position: relative;
             z-index: 1;
-            max-width: 800px;
+            max-width: 700px;
             margin: 0 auto;
             padding: 60px 24px;
         }
@@ -173,33 +129,28 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* --- Step section --- */
-        .step-section {
-            display: none;
+        /* --- Page header --- */
+        .page-header {
+            text-align: center;
+            margin-bottom: 40px;
             animation: fadeIn 0.5s ease-out;
         }
 
-        .step-section.active {
-            display: block;
-        }
-
-        .step-header {
-            margin-bottom: 32px;
-        }
-
-        .step-label {
-            font-size: 0.75rem;
-            font-weight: 500;
-            color: var(--accent);
-            text-transform: uppercase;
-            letter-spacing: 2px;
+        .page-title {
+            font-size: 1.8rem;
+            font-weight: 300;
+            color: var(--text-primary);
             margin-bottom: 8px;
         }
 
-        .step-title {
-            font-size: 1.6rem;
-            font-weight: 300;
-            color: var(--text-primary);
+        .page-subtitle {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        /* --- Upload section --- */
+        #uploadSection {
+            animation: fadeIn 0.5s ease-out;
         }
 
         /* --- Drop zone --- */
@@ -210,7 +161,6 @@
             text-align: center;
             cursor: pointer;
             transition: all 0.3s ease;
-            position: relative;
         }
 
         .drop-zone:hover,
@@ -285,8 +235,8 @@
             flex-shrink: 0;
         }
 
-        /* --- Error / info messages --- */
-        .step-error {
+        /* --- Error --- */
+        .upload-error {
             display: none;
             margin-top: 14px;
             padding: 10px 14px;
@@ -314,6 +264,8 @@
         .btn-primary {
             background: var(--accent);
             color: #fff;
+            width: 100%;
+            margin-top: 28px;
         }
 
         .btn-primary:hover:not(:disabled) {
@@ -331,6 +283,14 @@
             cursor: not-allowed;
         }
 
+        .btn-verify {
+            display: none;
+        }
+
+        .btn-verify.visible {
+            display: block;
+        }
+
         .btn-secondary {
             background: transparent;
             color: var(--text-secondary);
@@ -343,111 +303,103 @@
             background: rgba(192, 192, 192, 0.05);
         }
 
-        .btn-link {
-            background: none;
-            border: none;
-            color: var(--text-secondary);
-            font-family: 'Outfit', sans-serif;
-            font-size: 0.85rem;
-            cursor: pointer;
-            padding: 4px 0;
-            transition: color 0.2s;
-        }
-
-        .btn-link:hover {
-            color: var(--text-primary);
-        }
-
-        .btn-continue {
+        /* --- Result section --- */
+        #resultSection {
             display: none;
-            margin-top: 28px;
-            width: 100%;
+            animation: fadeIn 0.5s ease-out;
         }
 
-        .btn-continue.visible {
+        #resultSection.visible {
             display: block;
         }
 
-        /* --- Canvas section --- */
-        .canvas-wrapper {
-            position: relative;
-            border-radius: 12px;
-            overflow: hidden;
-            border: 1px solid var(--border);
-            touch-action: none;
-        }
-
-        #signatureCanvas {
-            display: block;
-            width: 100%;
-            height: auto;
-            cursor: crosshair;
-            touch-action: none;
-        }
-
-        .canvas-hint {
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-            text-align: center;
-            margin-top: 10px;
-            opacity: 0.7;
-        }
-
-        .canvas-actions {
-            display: flex;
-            gap: 12px;
-            margin-top: 20px;
-            flex-wrap: wrap;
-        }
-
-        .canvas-actions .btn-primary {
-            flex: 1;
-        }
-
-        .step2-back {
-            margin-bottom: 24px;
-        }
-
-        /* --- Certificate card --- */
-        .certificate-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
+        /* --- Result card --- */
+        .result-card {
             border-radius: 16px;
             padding: 36px;
             position: relative;
             overflow: hidden;
         }
 
-        .certificate-card::before {
+        .result-card.verified {
+            background: var(--bg-card);
+            border: 1px solid rgba(0, 212, 138, 0.35);
+        }
+
+        .result-card.verified::before {
             content: '';
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
             height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(0, 212, 138, 0.4), transparent);
+            background: linear-gradient(90deg, transparent, rgba(0, 212, 138, 0.5), transparent);
         }
 
-        .cert-status {
-            display: inline-flex;
+        .result-card.not-verified {
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 77, 106, 0.35);
+        }
+
+        .result-card.not-verified::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255, 77, 106, 0.5), transparent);
+        }
+
+        /* --- Result header --- */
+        .result-header {
+            display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 6px 14px;
-            background: rgba(0, 212, 138, 0.1);
-            border: 1px solid rgba(0, 212, 138, 0.3);
-            border-radius: 20px;
-            color: var(--success);
-            font-size: 0.8rem;
-            font-weight: 500;
+            gap: 16px;
             margin-bottom: 28px;
         }
 
-        .cert-status::before {
-            content: '';
-            width: 6px;
-            height: 6px;
+        .result-icon {
+            width: 56px;
+            height: 56px;
             border-radius: 50%;
-            background: var(--success);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            flex-shrink: 0;
+        }
+
+        .result-icon.verified {
+            background: rgba(0, 212, 138, 0.12);
+            color: var(--success);
+        }
+
+        .result-icon.not-verified {
+            background: rgba(255, 77, 106, 0.12);
+            color: var(--error);
+        }
+
+        .result-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .result-title.verified { color: var(--success); }
+        .result-title.not-verified { color: var(--error); }
+
+        .result-message {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        /* --- Cert rows --- */
+        .cert-divider {
+            height: 1px;
+            background: var(--border);
+            margin: 24px 0;
         }
 
         .cert-row {
@@ -455,6 +407,10 @@
             flex-direction: column;
             gap: 4px;
             margin-bottom: 20px;
+        }
+
+        .cert-row:last-child {
+            margin-bottom: 0;
         }
 
         .cert-label {
@@ -470,7 +426,7 @@
             color: var(--text-primary);
         }
 
-        .cert-hash {
+        .cert-mono {
             font-family: 'Space Mono', monospace;
             font-size: 0.72rem;
             color: var(--accent);
@@ -478,31 +434,27 @@
             line-height: 1.6;
         }
 
-        .cert-divider {
-            height: 1px;
-            background: var(--border);
-            margin: 24px 0;
+        .cert-mono.error-color {
+            color: var(--error);
         }
 
-        .cert-signature-preview {
-            border-radius: 10px;
-            overflow: hidden;
-            border: 1px solid var(--border);
+        .signature-preview {
             background: #fff;
-            max-width: 340px;
+            border-radius: 8px;
+            overflow: hidden;
+            max-width: 400px;
+            border: 1px solid var(--border);
         }
 
-        .cert-signature-preview img {
+        .signature-preview img {
             display: block;
             width: 100%;
             height: auto;
         }
 
-        .cert-actions {
-            display: flex;
-            gap: 12px;
+        /* --- Result actions --- */
+        .result-actions {
             margin-top: 32px;
-            flex-wrap: wrap;
         }
 
         /* --- Footer --- */
@@ -539,15 +491,7 @@
                 padding: 40px 20px;
             }
 
-            .canvas-actions {
-                flex-direction: column;
-            }
-
-            .cert-actions {
-                flex-direction: column;
-            }
-
-            .certificate-card {
+            .result-card {
                 padding: 24px 20px;
             }
         }
@@ -557,29 +501,24 @@
 
     <!-- Navbar -->
     <nav class="navbar">
-        <div class="navbar-left">
-            <button class="btn-back" id="btnBackPanel">← Volver al panel</button>
-            <div class="navbar-brand">Validador SSRS</div>
-        </div>
-        <div class="navbar-user">
-            <div class="user-avatar" id="userAvatar">U</div>
-            <span id="userName">—</span>
-            <button class="btn-logout" id="btnLogout">Salir</button>
-        </div>
+        <button class="btn-back" id="btnBackPanel">← Volver al panel</button>
+        <div class="navbar-brand">Validador SSRS</div>
     </nav>
 
     <!-- Main Content -->
     <div class="main-content">
 
-        <!-- ======= PASO 1: Subir documento ======= -->
-        <div class="step-section active" id="step1">
-            <div class="step-header">
-                <p class="step-label">Paso 1 de 2</p>
-                <h2 class="step-title">Subir documento</h2>
-            </div>
+        <!-- Page header -->
+        <div class="page-header">
+            <h1 class="page-title">Verificar Documento</h1>
+            <p class="page-subtitle">Sube un documento para comprobar su integridad y autenticidad</p>
+        </div>
+
+        <!-- ======= Sección de subida ======= -->
+        <div id="uploadSection">
 
             <div class="drop-zone" id="dropZone">
-                <span class="drop-zone-icon">📄</span>
+                <span class="drop-zone-icon">🔍</span>
                 <p class="drop-zone-text">Arrastra tu archivo aquí o haz clic para seleccionar</p>
                 <p class="drop-zone-hint">PDF, DOC, DOCX, TXT, PNG, JPG · Máximo 10 MB</p>
             </div>
@@ -595,93 +534,86 @@
                 <span class="file-check">✓</span>
             </div>
 
-            <div class="step-error" id="step1Error"></div>
+            <div class="upload-error" id="uploadError"></div>
 
-            <button class="btn btn-primary btn-continue" id="btnContinue">
-                Continuar →
+            <button class="btn btn-primary btn-verify" id="btnVerify">
+                Verificar integridad
             </button>
+
         </div>
 
-        <!-- ======= PASO 2: Firma digital ======= -->
-        <div class="step-section" id="step2">
-            <div class="step-header">
-                <p class="step-label">Paso 2 de 2</p>
-                <h2 class="step-title">Dibuja tu firma</h2>
-            </div>
+        <!-- ======= Sección de resultado ======= -->
+        <div id="resultSection">
 
-            <button class="btn-link step2-back" id="btnBackStep1">← Volver al paso 1</button>
+            <!-- Estado: verificado -->
+            <div class="result-card verified" id="cardVerified" style="display:none">
+                <div class="result-header">
+                    <div class="result-icon verified">✓</div>
+                    <div>
+                        <div class="result-title verified">Documento íntegro</div>
+                        <div class="result-message">Este documento fue firmado digitalmente y no ha sido alterado.</div>
+                    </div>
+                </div>
 
-            <div class="canvas-wrapper">
-                <canvas id="signatureCanvas" width="700" height="250"></canvas>
-            </div>
-            <p class="canvas-hint">Dibuja tu firma con el mouse o con el dedo en pantallas táctiles</p>
-
-            <div class="step-error" id="step2Error"></div>
-
-            <div class="canvas-actions">
-                <button class="btn btn-secondary" id="btnClearCanvas">Limpiar firma</button>
-                <button class="btn btn-primary" id="btnSign" disabled>
-                    Firmar y generar certificado
-                </button>
-            </div>
-        </div>
-
-        <!-- ======= PASO 3: Certificado ======= -->
-        <div class="step-section" id="step3">
-            <div class="step-header">
-                <p class="step-label">Certificado generado</p>
-                <h2 class="step-title">Certificado de firma</h2>
-            </div>
-
-            <div class="certificate-card">
-                <div class="cert-status">Documento firmado y registrado</div>
+                <div class="cert-divider"></div>
 
                 <div class="cert-row">
-                    <span class="cert-label">Documento</span>
-                    <span class="cert-value" id="certFileName">—</span>
+                    <span class="cert-label">Firmado por</span>
+                    <span class="cert-value" id="resEmail">—</span>
                 </div>
 
                 <div class="cert-row">
-                    <span class="cert-label">Tamaño</span>
-                    <span class="cert-value" id="certFileSize">—</span>
+                    <span class="cert-label">Fecha de firma</span>
+                    <span class="cert-value" id="resDate">—</span>
+                </div>
+
+                <div class="cert-row">
+                    <span class="cert-label">Nombre original del archivo</span>
+                    <span class="cert-value" id="resFileName">—</span>
                 </div>
 
                 <div class="cert-row">
                     <span class="cert-label">Hash SHA-256</span>
-                    <span class="cert-hash" id="certHash">—</span>
-                </div>
-
-                <div class="cert-divider"></div>
-
-                <div class="cert-row">
-                    <span class="cert-label">Firmante</span>
-                    <span class="cert-value" id="certEmail">—</span>
+                    <span class="cert-mono" id="resHash">—</span>
                 </div>
 
                 <div class="cert-row">
-                    <span class="cert-label">Fecha y hora</span>
-                    <span class="cert-value" id="certDate">—</span>
+                    <span class="cert-label">ID del certificado</span>
+                    <span class="cert-mono" id="resDocId">—</span>
                 </div>
-
-                <div class="cert-row">
-                    <span class="cert-label">ID de registro</span>
-                    <span class="cert-hash" id="certDocId">—</span>
-                </div>
-
-                <div class="cert-divider"></div>
 
                 <div class="cert-row">
                     <span class="cert-label">Firma digital</span>
-                    <div class="cert-signature-preview">
-                        <img id="certSignatureImg" src="" alt="Firma digital">
+                    <div class="signature-preview">
+                        <img id="resSignatureImg" src="" alt="Firma digital">
                     </div>
                 </div>
             </div>
 
-            <div class="cert-actions">
-                <button class="btn btn-secondary" id="btnSignAnother">Firmar otro documento</button>
-                <button class="btn btn-primary" id="btnGoPanel">Volver al panel</button>
+            <!-- Estado: no verificado -->
+            <div class="result-card not-verified" id="cardNotVerified" style="display:none">
+                <div class="result-header">
+                    <div class="result-icon not-verified">✗</div>
+                    <div>
+                        <div class="result-title not-verified">Documento no verificado</div>
+                        <div class="result-message">No se encontró un registro de firma para este documento. El archivo puede no haber sido firmado a través de este sistema, o pudo haber sido modificado después de firmarse.</div>
+                    </div>
+                </div>
+
+                <div class="cert-divider"></div>
+
+                <div class="cert-row">
+                    <span class="cert-label">Hash SHA-256 generado</span>
+                    <span class="cert-mono error-color" id="resHashNotFound">—</span>
+                </div>
             </div>
+
+            <div class="result-actions">
+                <button class="btn btn-secondary" id="btnVerifyAnother" style="width:100%; padding:12px 24px;">
+                    Verificar otro documento
+                </button>
+            </div>
+
         </div>
 
     </div>
@@ -691,7 +623,7 @@
         <span class="mono">SSRS</span> · Derecho Informático · 2026
     </div>
 
-    <script type="module" src="/src/firmar.js"></script>
+    <script type="module" src="/src/verificar.js"></script>
 
 </body>
 </html>

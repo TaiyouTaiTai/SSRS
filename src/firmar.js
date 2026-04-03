@@ -1,7 +1,6 @@
 import { requireAuth, logoutUser } from './auth.js';
-import { db, storage } from './firebase.js';
+import { db } from './firebase.js';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 // ─── Estado del módulo ────────────────────────────────────────────────────────
 let currentFile = null;
@@ -219,6 +218,13 @@ function showStep2Error(msg) {
 // ─── Botón principal: Firmar y generar certificado ────────────────────────────
 btnSign.addEventListener('click', async () => {
   step2Error.style.display = 'none';
+
+  // Guardia: usuario no autenticado aún (condición de carrera con requireAuth)
+  if (!currentUser) {
+    showStep2Error('Sesión no disponible. Recarga la página e intenta de nuevo.');
+    return;
+  }
+
   btnSign.disabled = true;
   btnSign.textContent = 'Procesando firma...';
 
@@ -229,30 +235,22 @@ btnSign.addEventListener('click', async () => {
     // 2. Capturar firma como base64
     const signatureBase64 = canvas.toDataURL('image/png');
 
-    // 3. Subir documento a Firebase Storage
-    const filePath = `documentos/${currentUser.uid}/${Date.now()}_${currentFile.name}`;
-    const storageRef = ref(storage, filePath);
-    await uploadBytes(storageRef, currentFile);
-    const downloadURL = await getDownloadURL(storageRef);
-
-    // 4. Guardar paquete en Firestore
+    // 3. Guardar paquete en Firestore (sin Storage)
     const signaturePackage = {
       userId: currentUser.uid,
       userEmail: currentUser.email,
       fileName: currentFile.name,
       fileSize: currentFile.size,
       fileType: currentFile.type,
-      fileURL: downloadURL,
-      storagePath: filePath,
       hash: currentFileHash,
       signature: signatureBase64,
       signedAt: serverTimestamp(),
       status: 'valid',
     };
 
-    await addDoc(collection(db, 'firmas'), signaturePackage);
+    const docRef = await addDoc(collection(db, 'firmas'), signaturePackage);
 
-    // 5. Mostrar certificado
+    // 4. Mostrar certificado
     document.getElementById('certFileName').textContent = currentFile.name;
     document.getElementById('certFileSize').textContent = formatSize(currentFile.size);
     document.getElementById('certHash').textContent = currentFileHash;
@@ -262,11 +260,24 @@ btnSign.addEventListener('click', async () => {
       timeStyle: 'short',
     });
     document.getElementById('certSignatureImg').src = signatureBase64;
+    document.getElementById('certDocId').textContent = docRef.id;
 
     showStep(3);
   } catch (err) {
-    console.error('Error al firmar:', err);
-    showStep2Error('Ocurrió un error al procesar la firma. Verifica tu conexión e intenta de nuevo.');
+    console.error('Error al firmar — código:', err.code, '| mensaje:', err.message, '| completo:', err);
+
+    let msg = '';
+    if (
+      err.code === 'permission-denied' ||
+      err.message?.includes('Missing or insufficient permissions')
+    ) {
+      msg =
+        'Sin permiso en Firestore. Ve a Firebase Console → Firestore → Rules y permite escritura a usuarios autenticados.';
+    } else {
+      msg = `Error: ${err.message || err.code || 'desconocido'}`;
+    }
+
+    showStep2Error(msg);
     btnSign.disabled = false;
     btnSign.textContent = 'Firmar y generar certificado';
   }
