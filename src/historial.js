@@ -166,7 +166,7 @@ function renderCards(firmas) {
           <span class="detail-id">${escapeHtml(firma.id)}</span>
         </div>
         <div class="detail-actions">
-          ${firma.originalUrl ? '<button class="btn-detail btn-detail-view">Ver documento ↗</button>' : ''}
+          ${(firma.signedDocUrl || firma.originalUrl) ? '<button class="btn-detail btn-detail-view">Ver documento firmado ↗</button>' : ''}
           <button class="btn-detail btn-detail-cert">⬇ Descargar certificado PDF</button>
         </div>
         <button class="btn-close-detail">Cerrar detalle</button>
@@ -195,7 +195,7 @@ function renderCards(firmas) {
     if (viewBtn) {
       viewBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        window.open(firma.originalUrl, '_blank');
+        window.open(firma.signedDocUrl || firma.originalUrl, '_blank');
       });
     }
 

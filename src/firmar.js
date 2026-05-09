@@ -10,6 +10,16 @@ let currentFileHash = null;
 let currentUser = null;
 let canvasHasContent = false;
 let currentCertPdf = null;
+let currentSignedDocBase64 = null;
+let documentImageData = null;   // snapshot del documento renderizado (sin firma)
+
+// ─── Canvas principal (documento + firma) ─────────────────────────────────────
+const canvas = document.getElementById('signatureCanvas');
+const ctx = canvas.getContext('2d');
+
+// Canvas oculto: registra solo los trazos de la firma (fondo blanco)
+const sigCanvas = document.createElement('canvas');
+const sigCtx = sigCanvas.getContext('2d');
 
 // ─── Protección de ruta ───────────────────────────────────────────────────────
 requireAuth((user) => {
@@ -85,7 +95,7 @@ function handleFile(file) {
   clearStep1Error();
 
   if (!ALLOWED_TYPES.includes(file.type)) {
-    showStep1Error('Tipo de archivo no permitido. Usa PDF, DOC, DOCX, TXT, PNG o JPG.');
+    showStep1Error('Tipo de archivo no permitido. Usa PDF, PNG o JPG.');
     return;
   }
 
@@ -123,27 +133,112 @@ dropZone.addEventListener('drop', (e) => {
   if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
 });
 
-btnContinue.addEventListener('click', () => {
-  if (currentFile) showStep(2);
+btnContinue.addEventListener('click', async () => {
+  if (!currentFile) return;
+  showStep(2);
+  await loadDocumentToCanvas(currentFile);
 });
 
-// ─── Paso 2: Canvas de firma ──────────────────────────────────────────────────
-const canvas = document.getElementById('signatureCanvas');
-const ctx = canvas.getContext('2d');
+// ─── Carga del documento en el canvas ────────────────────────────────────────
+const canvasLoading = document.getElementById('canvasLoading');
+
+const MAX_W = 780;
+const MAX_H = 900;
+
+function scaleToFit(w, h) {
+  const scale = Math.min(MAX_W / w, MAX_H / h, 1);
+  return { w: Math.round(w * scale), h: Math.round(h * scale) };
+}
+
+function resizeBothCanvases(w, h) {
+  canvas.width = w;
+  canvas.height = h;
+  sigCanvas.width = w;
+  sigCanvas.height = h;
+  sigCtx.fillStyle = '#FFFFFF';
+  sigCtx.fillRect(0, 0, w, h);
+  sigCtx.strokeStyle = '#000000';
+  sigCtx.lineWidth = 2.5;
+  sigCtx.lineCap = 'round';
+  sigCtx.lineJoin = 'round';
+}
+
+async function loadDocumentToCanvas(file) {
+  canvasLoading.style.display = 'flex';
+  canvasHasContent = false;
+  document.getElementById('btnSign').disabled = true;
+
+  try {
+    if (file.type.startsWith('image/')) {
+      await loadImage(file);
+    } else if (file.type === 'application/pdf') {
+      await loadPdf(file);
+    } else {
+      loadBlank();
+    }
+  } catch (err) {
+    console.error('Error cargando documento:', err);
+    loadBlank();
+  } finally {
+    canvasLoading.style.display = 'none';
+  }
+}
+
+function loadBlank() {
+  resizeBothCanvases(700, 350);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // Hint de tipo no previsualizable
+  ctx.fillStyle = '#CCCCCC';
+  ctx.font = '14px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Vista previa no disponible · Firma aquí', canvas.width / 2, canvas.height / 2);
+  ctx.textAlign = 'left';
+  documentImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+}
+
+function loadImage(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const { w, h } = scaleToFit(img.naturalWidth, img.naturalHeight);
+      resizeBothCanvases(w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      documentImageData = ctx.getImageData(0, 0, w, h);
+      URL.revokeObjectURL(url);
+      resolve();
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('No se pudo cargar la imagen')); };
+    img.src = url;
+  });
+}
+
+async function loadPdf(file) {
+  const pdfjsLib = await import('pdfjs-dist');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+    'pdfjs-dist/build/pdf.worker.min.mjs',
+    import.meta.url
+  ).href;
+
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const page = await pdf.getPage(1);
+
+  const baseViewport = page.getViewport({ scale: 1 });
+  const scale = Math.min(MAX_W / baseViewport.width, MAX_H / baseViewport.height);
+  const viewport = page.getViewport({ scale });
+
+  resizeBothCanvases(Math.round(viewport.width), Math.round(viewport.height));
+
+  await page.render({ canvasContext: ctx, viewport }).promise;
+  documentImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+}
+
+// ─── Dibujo sobre el canvas ───────────────────────────────────────────────────
 const btnClearCanvas = document.getElementById('btnClearCanvas');
 const btnSign = document.getElementById('btnSign');
 const step2Error = document.getElementById('step2Error');
-
-function initCanvas() {
-  ctx.fillStyle = '#FFFFFF';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.strokeStyle = '#000000';
-  ctx.lineWidth = 2.5;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-}
-
-initCanvas();
 
 let isDrawing = false;
 
@@ -169,14 +264,22 @@ function startDrawing(e) {
   const pos = getPosition(e);
   ctx.beginPath();
   ctx.moveTo(pos.x, pos.y);
+  sigCtx.beginPath();
+  sigCtx.moveTo(pos.x, pos.y);
 }
 
 function draw(e) {
   if (!isDrawing) return;
   e.preventDefault();
   const pos = getPosition(e);
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
   ctx.lineTo(pos.x, pos.y);
   ctx.stroke();
+  sigCtx.lineTo(pos.x, pos.y);
+  sigCtx.stroke();
 }
 
 function stopDrawing() {
@@ -195,7 +298,15 @@ canvas.addEventListener('touchmove', draw, { passive: false });
 canvas.addEventListener('touchend', stopDrawing);
 
 btnClearCanvas.addEventListener('click', () => {
-  initCanvas();
+  // Restaura el documento sin la firma
+  if (documentImageData) {
+    ctx.putImageData(documentImageData, 0, 0);
+  }
+  // Limpia el canvas de firma
+  sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+  sigCtx.fillStyle = '#FFFFFF';
+  sigCtx.fillRect(0, 0, sigCanvas.width, sigCanvas.height);
+
   canvasHasContent = false;
   btnSign.disabled = true;
   step2Error.style.display = 'none';
@@ -218,7 +329,7 @@ function showStep2Error(msg) {
   step2Error.style.display = 'block';
 }
 
-// ─── Botón principal: Firmar ──────────────────────────────────────────────────
+// ─── Firmar ───────────────────────────────────────────────────────────────────
 btnSign.addEventListener('click', async () => {
   step2Error.style.display = 'none';
 
@@ -231,11 +342,17 @@ btnSign.addEventListener('click', async () => {
   const setStatus = (msg) => { btnSign.textContent = msg; };
 
   try {
+    console.log('[firmar] 1/5 calculando hash…');
     setStatus('Calculando integridad…');
     currentFileHash = await generateHash(currentFile);
-    const signatureBase64 = canvas.toDataURL('image/png');
-    const signedAt = new Date();
 
+    console.log('[firmar] 2/5 exportando canvas a base64…');
+    const signedDocBase64 = canvas.toDataURL('image/png');
+    const signatureBase64 = sigCanvas.toDataURL('image/png');
+    const signedAt = new Date();
+    currentSignedDocBase64 = signedDocBase64;
+
+    console.log('[firmar] 3/5 guardando en Firestore…');
     setStatus('Registrando firma…');
     const signaturePackage = {
       userId: currentUser.uid,
@@ -249,13 +366,21 @@ btnSign.addEventListener('click', async () => {
       status: 'valid',
     };
     const docRef = await addDoc(collection(db, 'firmas'), signaturePackage);
+    console.log('[firmar] Firestore OK, docId:', docRef.id);
 
-    setStatus('Subiendo documento…');
-    const storageRef = ref(storage, `firmas/${currentUser.uid}/${docRef.id}/${currentFile.name}`);
-    await uploadBytes(storageRef, currentFile);
-    const originalUrl = await getDownloadURL(storageRef);
-    await updateDoc(doc(db, 'firmas', docRef.id), { originalUrl });
+    // Storage: fire-and-forget — nunca bloquea el flujo principal
+    const storageRef = ref(storage, `firmas/${currentUser.uid}/${docRef.id}/documento-firmado.png`);
+    canvas.toBlob((blob) => {
+      if (!blob) return console.warn('[storage] toBlob devolvió null');
+      console.log('[storage] subiendo blob de', Math.round(blob.size / 1024), 'KB');
+      uploadBytes(storageRef, blob)
+        .then(() => getDownloadURL(storageRef))
+        .then((url) => updateDoc(doc(db, 'firmas', docRef.id), { signedDocUrl: url }))
+        .then(() => console.log('[storage] upload OK'))
+        .catch((err) => console.warn('[storage] upload falló:', err.message));
+    }, 'image/png');
 
+    console.log('[firmar] 4/5 generando certificado PDF…');
     setStatus('Generando certificado…');
     currentCertPdf = generateCertificatePDF({
       fileName: currentFile.name,
@@ -268,6 +393,7 @@ btnSign.addEventListener('click', async () => {
       signature: signatureBase64,
     });
 
+    console.log('[firmar] 5/5 mostrando paso 3');
     document.getElementById('certFileName').textContent = currentFile.name;
     document.getElementById('certFileSize').textContent = formatSize(currentFile.size);
     document.getElementById('certHash').textContent = currentFileHash;
@@ -276,18 +402,19 @@ btnSign.addEventListener('click', async () => {
       dateStyle: 'long',
       timeStyle: 'short',
     });
-    document.getElementById('certSignatureImg').src = signatureBase64;
+    document.getElementById('certSignedDocImg').src = signedDocBase64;
     document.getElementById('certDocId').textContent = docRef.id;
 
     showStep(3);
+    console.log('[firmar] flujo completado');
   } catch (err) {
-    console.error('Error al firmar — código:', err.code, '| mensaje:', err.message, '| completo:', err);
+    console.error('[firmar] ERROR:', err.code, err.message, err);
 
     let msg = '';
     if (err.code === 'permission-denied' || err.message?.includes('Missing or insufficient permissions')) {
       msg = 'Sin permiso en Firestore. Verifica las reglas de seguridad.';
     } else if (err.code === 'storage/unauthorized') {
-      msg = 'Sin permiso en Firebase Storage. Verifica las reglas de Storage en Firebase Console.';
+      msg = 'Sin permiso en Firebase Storage. Verifica las reglas en Firebase Console.';
     } else {
       msg = `Error: ${err.message || err.code || 'desconocido'}`;
     }
@@ -298,11 +425,20 @@ btnSign.addEventListener('click', async () => {
   }
 });
 
+// ─── Descargar documento firmado ──────────────────────────────────────────────
+document.getElementById('btnDownloadSignedDoc').addEventListener('click', () => {
+  if (!currentSignedDocBase64) return;
+  const a = document.createElement('a');
+  const base = (currentFile?.name || 'documento').replace(/\.[^/.]+$/, '');
+  a.download = `firmado-${base}.png`;
+  a.href = currentSignedDocBase64;
+  a.click();
+});
+
 // ─── Descargar certificado PDF ────────────────────────────────────────────────
 document.getElementById('btnDownloadCert').addEventListener('click', () => {
   if (currentCertPdf) {
-    const certId = document.getElementById('certDocId').textContent;
-    currentCertPdf.save(`certificado-${certId}.pdf`);
+    currentCertPdf.save(`certificado-${document.getElementById('certDocId').textContent}.pdf`);
   }
 });
 
@@ -312,13 +448,20 @@ document.getElementById('btnSignAnother').addEventListener('click', () => {
   currentFileHash = null;
   canvasHasContent = false;
   currentCertPdf = null;
+  currentSignedDocBase64 = null;
+  documentImageData = null;
 
   fileInfo.classList.remove('visible');
   btnContinue.classList.remove('visible');
   clearStep1Error();
   fileInput.value = '';
 
-  initCanvas();
+  // Resetear canvas
+  canvas.width = 300;
+  canvas.height = 150;
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
   btnSign.disabled = true;
   btnSign.textContent = 'Firmar y generar certificado';
   step2Error.style.display = 'none';
