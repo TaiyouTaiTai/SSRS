@@ -368,6 +368,10 @@
             display: block;
         }
 
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         /* --- Canvas section --- */
         .canvas-wrapper {
             position: relative;
@@ -375,6 +379,31 @@
             overflow: hidden;
             border: 1px solid var(--border);
             touch-action: none;
+            min-height: 120px;
+            background: #fff;
+        }
+
+        .canvas-loading {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            background: var(--bg-card);
+            border-radius: 12px;
+            color: var(--text-secondary);
+            font-size: 0.88rem;
+            z-index: 2;
+        }
+
+        .canvas-spinner {
+            width: 22px;
+            height: 22px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
         }
 
         #signatureCanvas {
@@ -484,15 +513,16 @@
             margin: 24px 0;
         }
 
-        .cert-signature-preview {
+        .cert-signed-doc-preview {
             border-radius: 10px;
             overflow: hidden;
             border: 1px solid var(--border);
             background: #fff;
-            max-width: 340px;
+            max-height: 380px;
+            overflow-y: auto;
         }
 
-        .cert-signature-preview img {
+        .cert-signed-doc-preview img {
             display: block;
             width: 100%;
             height: auto;
@@ -606,15 +636,19 @@
         <div class="step-section" id="step2">
             <div class="step-header">
                 <p class="step-label">Paso 2 de 2</p>
-                <h2 class="step-title">Dibuja tu firma</h2>
+                <h2 class="step-title">Firma el documento</h2>
             </div>
 
             <button class="btn-link step2-back" id="btnBackStep1">← Volver al paso 1</button>
 
-            <div class="canvas-wrapper">
-                <canvas id="signatureCanvas" width="700" height="250"></canvas>
+            <div class="canvas-wrapper" id="canvasWrapper">
+                <canvas id="signatureCanvas"></canvas>
+                <div class="canvas-loading" id="canvasLoading">
+                    <div class="canvas-spinner"></div>
+                    <span>Cargando documento…</span>
+                </div>
             </div>
-            <p class="canvas-hint">Dibuja tu firma con el mouse o con el dedo en pantallas táctiles</p>
+            <p class="canvas-hint">Dibuja tu firma directamente sobre el documento · "Limpiar" para borrar solo la firma</p>
 
             <div class="step-error" id="step2Error"></div>
 
@@ -671,16 +705,18 @@
                 <div class="cert-divider"></div>
 
                 <div class="cert-row">
-                    <span class="cert-label">Firma digital</span>
-                    <div class="cert-signature-preview">
-                        <img id="certSignatureImg" src="" alt="Firma digital">
+                    <span class="cert-label">Vista previa del documento firmado</span>
+                    <div class="cert-signed-doc-preview">
+                        <img id="certSignedDocImg" src="" alt="Documento firmado">
                     </div>
                 </div>
             </div>
 
             <div class="cert-actions">
                 <button class="btn btn-secondary" id="btnSignAnother">Firmar otro documento</button>
-                <button class="btn btn-primary" id="btnGoPanel">Volver al panel</button>
+                <button class="btn btn-secondary" id="btnDownloadSignedDoc">⬇ Documento firmado</button>
+                <button class="btn btn-primary" id="btnDownloadCert">⬇ Certificado PDF</button>
+                <button class="btn btn-secondary" id="btnGoPanel">Volver al panel</button>
             </div>
         </div>
 
