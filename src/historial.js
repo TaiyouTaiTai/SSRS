@@ -1,6 +1,7 @@
 import { requireAuth, logoutUser } from './auth.js';
 import { db } from './firebase.js';
 import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
+import { generateCertificatePDF } from './pdfUtils.js';
 
 // ─── Protección de ruta ───────────────────────────────────────────────────────
 requireAuth((user) => {
@@ -64,8 +65,8 @@ async function loadHistory(userId) {
     }
 
     const firmas = [];
-    querySnapshot.forEach((doc) => {
-      firmas.push({ id: doc.id, ...doc.data() });
+    querySnapshot.forEach((d) => {
+      firmas.push({ id: d.id, ...d.data() });
     });
 
     updateCounter(firmas.length);
@@ -109,6 +110,15 @@ function formatDate(timestamp) {
   }
 }
 
+function formatDateLong(timestamp) {
+  if (!timestamp) return 'No disponible';
+  try {
+    return timestamp.toDate().toLocaleString('es-GT', { dateStyle: 'long', timeStyle: 'medium' });
+  } catch (_) {
+    return 'No disponible';
+  }
+}
+
 function renderCards(firmas) {
   const container = document.getElementById('historyList');
   container.innerHTML = '';
@@ -149,11 +159,15 @@ function renderCards(firmas) {
         </div>
         <div class="detail-row">
           <span class="detail-label">Fecha y hora completa</span>
-          <span class="detail-value">${escapeHtml(firma.signedAt ? firma.signedAt.toDate().toLocaleString('es-GT', { dateStyle: 'long', timeStyle: 'medium' }) : 'No disponible')}</span>
+          <span class="detail-value">${escapeHtml(formatDateLong(firma.signedAt))}</span>
         </div>
         <div class="detail-row">
           <span class="detail-label">ID del certificado</span>
           <span class="detail-id">${escapeHtml(firma.id)}</span>
+        </div>
+        <div class="detail-actions">
+          ${firma.originalUrl ? '<button class="btn-detail btn-detail-view">Ver documento ↗</button>' : ''}
+          <button class="btn-detail btn-detail-cert">⬇ Descargar certificado PDF</button>
         </div>
         <button class="btn-close-detail">Cerrar detalle</button>
       </div>
@@ -162,10 +176,11 @@ function renderCards(firmas) {
     const mainSection = card.querySelector('.card-main');
     const detailSection = card.querySelector('.card-detail');
     const closeBtn = card.querySelector('.btn-close-detail');
+    const viewBtn = card.querySelector('.btn-detail-view');
+    const certBtn = card.querySelector('.btn-detail-cert');
 
     mainSection.addEventListener('click', () => {
       const isOpen = detailSection.style.display !== 'none';
-      // Colapsar todos los demás detalles abiertos
       document.querySelectorAll('.card-detail').forEach((d) => {
         d.style.display = 'none';
       });
@@ -175,6 +190,19 @@ function renderCards(firmas) {
     closeBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       detailSection.style.display = 'none';
+    });
+
+    if (viewBtn) {
+      viewBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        window.open(firma.originalUrl, '_blank');
+      });
+    }
+
+    certBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const pdf = generateCertificatePDF(firma);
+      pdf.save(`certificado-${firma.id}.pdf`);
     });
 
     container.appendChild(card);

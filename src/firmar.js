@@ -1,12 +1,15 @@
 import { requireAuth, logoutUser } from './auth.js';
-import { db } from './firebase.js';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db, storage } from './firebase.js';
+import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { generateCertificatePDF } from './pdfUtils.js';
 
 // ─── Estado del módulo ────────────────────────────────────────────────────────
 let currentFile = null;
 let currentFileHash = null;
 let currentUser = null;
 let canvasHasContent = false;
+let currentCertPdf = null;
 
 // ─── Protección de ruta ───────────────────────────────────────────────────────
 requireAuth((user) => {
@@ -60,7 +63,7 @@ const FILE_ICONS = {
   'image/jpeg': '🖼️',
 };
 
-const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
+const MAX_SIZE = 10 * 1024 * 1024;
 
 function formatSize(bytes) {
   if (bytes < 1024) return `${bytes} B`;
@@ -215,27 +218,25 @@ function showStep2Error(msg) {
   step2Error.style.display = 'block';
 }
 
-// ─── Botón principal: Firmar y generar certificado ────────────────────────────
+// ─── Botón principal: Firmar ──────────────────────────────────────────────────
 btnSign.addEventListener('click', async () => {
   step2Error.style.display = 'none';
 
-  // Guardia: usuario no autenticado aún (condición de carrera con requireAuth)
   if (!currentUser) {
     showStep2Error('Sesión no disponible. Recarga la página e intenta de nuevo.');
     return;
   }
 
   btnSign.disabled = true;
-  btnSign.textContent = 'Procesando firma...';
+  const setStatus = (msg) => { btnSign.textContent = msg; };
 
   try {
-    // 1. Generar hash SHA-256
+    setStatus('Calculando integridad…');
     currentFileHash = await generateHash(currentFile);
-
-    // 2. Capturar firma como base64
     const signatureBase64 = canvas.toDataURL('image/png');
+    const signedAt = new Date();
 
-    // 3. Guardar paquete en Firestore (sin Storage)
+    setStatus('Registrando firma…');
     const signaturePackage = {
       userId: currentUser.uid,
       userEmail: currentUser.email,
@@ -247,15 +248,31 @@ btnSign.addEventListener('click', async () => {
       signedAt: serverTimestamp(),
       status: 'valid',
     };
-
     const docRef = await addDoc(collection(db, 'firmas'), signaturePackage);
 
-    // 4. Mostrar certificado
+    setStatus('Subiendo documento…');
+    const storageRef = ref(storage, `firmas/${currentUser.uid}/${docRef.id}/${currentFile.name}`);
+    await uploadBytes(storageRef, currentFile);
+    const originalUrl = await getDownloadURL(storageRef);
+    await updateDoc(doc(db, 'firmas', docRef.id), { originalUrl });
+
+    setStatus('Generando certificado…');
+    currentCertPdf = generateCertificatePDF({
+      fileName: currentFile.name,
+      fileSize: currentFile.size,
+      fileType: currentFile.type,
+      hash: currentFileHash,
+      userEmail: currentUser.email,
+      signedAt,
+      id: docRef.id,
+      signature: signatureBase64,
+    });
+
     document.getElementById('certFileName').textContent = currentFile.name;
     document.getElementById('certFileSize').textContent = formatSize(currentFile.size);
     document.getElementById('certHash').textContent = currentFileHash;
     document.getElementById('certEmail').textContent = currentUser.email;
-    document.getElementById('certDate').textContent = new Date().toLocaleString('es-MX', {
+    document.getElementById('certDate').textContent = signedAt.toLocaleString('es-MX', {
       dateStyle: 'long',
       timeStyle: 'short',
     });
@@ -267,12 +284,10 @@ btnSign.addEventListener('click', async () => {
     console.error('Error al firmar — código:', err.code, '| mensaje:', err.message, '| completo:', err);
 
     let msg = '';
-    if (
-      err.code === 'permission-denied' ||
-      err.message?.includes('Missing or insufficient permissions')
-    ) {
-      msg =
-        'Sin permiso en Firestore. Ve a Firebase Console → Firestore → Rules y permite escritura a usuarios autenticados.';
+    if (err.code === 'permission-denied' || err.message?.includes('Missing or insufficient permissions')) {
+      msg = 'Sin permiso en Firestore. Verifica las reglas de seguridad.';
+    } else if (err.code === 'storage/unauthorized') {
+      msg = 'Sin permiso en Firebase Storage. Verifica las reglas de Storage en Firebase Console.';
     } else {
       msg = `Error: ${err.message || err.code || 'desconocido'}`;
     }
@@ -283,20 +298,26 @@ btnSign.addEventListener('click', async () => {
   }
 });
 
+// ─── Descargar certificado PDF ────────────────────────────────────────────────
+document.getElementById('btnDownloadCert').addEventListener('click', () => {
+  if (currentCertPdf) {
+    const certId = document.getElementById('certDocId').textContent;
+    currentCertPdf.save(`certificado-${certId}.pdf`);
+  }
+});
+
 // ─── Reiniciar flujo ──────────────────────────────────────────────────────────
 document.getElementById('btnSignAnother').addEventListener('click', () => {
-  // Resetear estado
   currentFile = null;
   currentFileHash = null;
   canvasHasContent = false;
+  currentCertPdf = null;
 
-  // Resetear paso 1
   fileInfo.classList.remove('visible');
   btnContinue.classList.remove('visible');
   clearStep1Error();
   fileInput.value = '';
 
-  // Resetear paso 2
   initCanvas();
   btnSign.disabled = true;
   btnSign.textContent = 'Firmar y generar certificado';

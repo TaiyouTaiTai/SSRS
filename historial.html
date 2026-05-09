@@ -423,6 +423,49 @@
             word-break: break-all;
         }
 
+        /* --- Card actions (ver / certificado) --- */
+        .detail-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 24px;
+            flex-wrap: wrap;
+        }
+
+        .btn-detail {
+            padding: 9px 20px;
+            border-radius: 8px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            letter-spacing: 0.3px;
+        }
+
+        .btn-detail-view {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        .btn-detail-view:hover {
+            border-color: var(--silver-mid);
+            color: var(--silver-light);
+            background: rgba(192, 192, 192, 0.05);
+        }
+
+        .btn-detail-cert {
+            background: var(--accent);
+            border: none;
+            color: #fff;
+        }
+
+        .btn-detail-cert:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 18px rgba(74, 108, 247, 0.3);
+        }
+
         .btn-close-detail {
             margin-top: 20px;
             padding: 8px 20px;
