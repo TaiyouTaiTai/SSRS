@@ -1,0 +1,33 @@
+{
+  "hosting": {
+    "target": "ssrs",
+    "public": "dist",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/panel.html",
+        "destination": "/panel.html"
+      },
+      {
+        "source": "/firmar.html",
+        "destination": "/firmar.html"
+      },
+      {
+        "source": "/verificar.html",
+        "destination": "/verificar.html"
+      },
+      {
+        "source": "/historial.html",
+        "destination": "/historial.html"
+      },
+      {
+        "source": "**",
+        "destination": "/login.html"
+      }
+    ]
+  }
+}

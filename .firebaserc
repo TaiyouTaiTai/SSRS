@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "taiyouflare"
+  },
+  "targets": {
+    "taiyouflare": {
+      "hosting": {
+        "ssrs": [
+          "ssrs-taiyouflare"
+        ]
+      }
+    }
+  }
+}
